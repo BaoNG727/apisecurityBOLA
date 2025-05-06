@@ -127,11 +127,8 @@ app.put('/api/grades/:gradeId', authenticateToken, (req, res) => {
         return res.status(404).json({ message: 'Grade not found' });
     }
     
-    // VULNERABLE: Only checks if user is admin, but doesn't validate which grade is being updated
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ message: 'Only admins can update grades' });
-    }
-    
+    // VULNERABLE: No check for admin role or if user owns the grade
+    // Any authenticated user can update any grade
     const { grade } = req.body;
     grades[gradeIndex].grade = grade;
     
@@ -147,4 +144,5 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
     console.log(`Vulnerable server running on http://localhost:${PORT}`);
     console.log('VULNERABLE VERSION - Demonstrates BOLA vulnerabilities');
+    console.log('WARNING: This server allows any authenticated user to update any grade without admin rights!');
 });
