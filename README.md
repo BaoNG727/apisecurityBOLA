@@ -15,7 +15,7 @@ BOLA (Broken Object Level Authorization) xảy ra khi một API chỉ xác thự
 Hệ thống bao gồm:
 - **Frontend**: Giao diện HTML/CSS/JavaScript đơn giản
 - **Backend**: 
-  - Server dễ bị tổn thương (Vulnerable) chạy trên cổng 3000
+  - Server có lỗ hổng bảo mật (Vulnerable) chạy trên cổng 3000
   - Server an toàn (Secure) chạy trên cổng 3001
 - **Xác thực**: Sử dụng JWT (JSON Web Token)
 
@@ -34,7 +34,7 @@ student-management/
 │   └── index.html          # Giao diện người dùng HTML
 ├── secure/                 # Phiên bản bảo mật của API
 │   └── server.js           # API với bảo vệ thích hợp
-└── vulnerable/             # Phiên bản dễ bị tổn thương của API
+└── vulnerable/             # Phiên bản có lỗ hổng bảo mật của API
     └── server.js           # API có lỗ hổng BOLA
 ```
 
@@ -72,7 +72,7 @@ npm run start-both  # Chạy cả hai server
 ```
 hoặc
 ```bash
-npm run start-vulnerable  # Chỉ chạy server dễ bị tổn thương
+npm run start-vulnerable  # Chỉ chạy server có lỗ hổng bảo mật
 npm run start-secure      # Chỉ chạy server an toàn
 ```
 
@@ -88,18 +88,50 @@ npm run start-secure      # Chỉ chạy server an toàn
 2. **Xem hồ sơ của Bob**:
    - Sử dụng Postman để tạo yêu cầu GET đến `http://localhost:3000/api/users/102`
    - Thêm header Authorization: `Bearer <token của Alice>`
-   - Server dễ bị tổn thương sẽ trả về thông tin hồ sơ của Bob
+   - Server có lỗ hổng bảo mật sẽ trả về thông tin hồ sơ của Bob
 
 3. **Sửa đổi hồ sơ của Bob**:
    - Tạo yêu cầu PUT đến `http://localhost:3000/api/users/102`
    - Thêm header Authorization: `Bearer <token của Alice>`
    - Body JSON: `{ "name": "Bob bị tấn công bởi Alice" }`
-   - Server dễ bị tổn thương sẽ cập nhật tên của Bob
+   - Server có lỗ hổng bảo mật sẽ cập nhật tên của Bob
 
 4. **Xem điểm của Bob**:
    - Tạo yêu cầu GET đến `http://localhost:3000/api/grades/102`
    - Thêm header Authorization: `Bearer <token của Alice>`
-   - Server dễ bị tổn thương sẽ trả về điểm của Bob
+   - Server có lỗ hổng bảo mật sẽ trả về điểm của Bob
+
+#### Kịch bản: Alice chỉnh sửa điểm của chính mình và của Bob
+
+1. **Đăng nhập với tư cách Alice**:
+   - Tạo yêu cầu POST đến `http://localhost:3000/api/login`
+   - Body JSON: `{ "username": "alice", "password": "alice123" }`
+   - Lưu token JWT từ phản hồi
+
+2. **Chỉnh sửa điểm của chính Alice**:
+   - Tạo yêu cầu PUT đến `http://localhost:3000/api/grades/1` (Điểm Toán của Alice)
+   - Thêm header: `Authorization: Bearer <token của Alice>`
+   - Thêm header: `Content-Type: application/json`
+   - Body JSON: `{ "grade": 100 }`
+   - Tương tự, sửa điểm Khoa học bằng cách gửi yêu cầu đến `http://localhost:3000/api/grades/2`
+
+3. **Chỉnh sửa điểm của Bob**:
+   - Tạo yêu cầu PUT đến `http://localhost:3000/api/grades/3` (Điểm Toán của Bob)
+   - Thêm header: `Authorization: Bearer <token của Alice>`
+   - Thêm header: `Content-Type: application/json`
+   - Body JSON: `{ "grade": 60 }`
+   - Tương tự, sửa điểm Khoa học của Bob bằng yêu cầu đến `http://localhost:3000/api/grades/4`
+
+4. **Xác minh điểm đã thay đổi**:
+   - Tạo yêu cầu GET đến `http://localhost:3000/api/grades/101` để xem điểm của Alice
+   - Tạo yêu cầu GET đến `http://localhost:3000/api/grades/102` để xem điểm của Bob
+   - Xác nhận rằng điểm đã được cập nhật theo yêu cầu
+
+#### Lưu ý khi khai thác lỗ hổng BOLA
+
+Phiên bản có lỗ hổng bảo mật (`http://localhost:3000`) cho phép người dùng sửa điểm trực tiếp mà không cần quyền admin. Đây là một ví dụ về lỗ hổng BOLA nghiêm trọng, cho phép người dùng thông thường có thể thao túng dữ liệu mà họ không nên có quyền sửa đổi.
+
+Phiên bản bảo mật (`http://localhost:3001`) đã khắc phục lỗ hổng này bằng cách kiểm tra phân quyền phù hợp. Khi bạn thử thực hiện các bước trên với phiên bản bảo mật, bạn sẽ nhận được thông báo lỗi 403 Forbidden.
 
 ### 3.3. Kiểm tra Phiên bản An toàn
 
@@ -107,11 +139,11 @@ Thực hiện các yêu cầu tương tự đối với server an toàn ở cổ
 
 ## 4. Phân tích Lỗ hổng và Biện pháp Bảo vệ
 
-### 4.1. Phân tích Lỗ hổng trong Phiên bản Dễ bị Tổn thương
+### 4.1. Phân tích Lỗ hổng trong Phiên bản có lỗ hổng bảo mật
 
-**Vấn đề**: Server dễ bị tổn thương chỉ kiểm tra xác thực (authentication) mà không kiểm tra ủy quyền (authorization). Nó xác minh rằng người dùng đã đăng nhập, nhưng không kiểm tra xem người dùng đó có quyền truy cập tài nguyên cụ thể hay không.
+**Vấn đề**: Server có lỗ hổng bảo mật chỉ kiểm tra xác thực (authentication) mà không kiểm tra ủy quyền (authorization). Nó xác minh rằng người dùng đã đăng nhập, nhưng không kiểm tra xem người dùng đó có quyền truy cập tài nguyên cụ thể hay không.
 
-Ví dụ trong đoạn mã dễ bị tổn thương:
+Ví dụ trong đoạn mã có lỗ hổng bảo mật:
 ```javascript
 app.get('/api/users/:userId', authenticateToken, (req, res) => {
     const userId = parseInt(req.params.userId);
